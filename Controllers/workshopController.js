@@ -234,7 +234,7 @@ module.exports.registerForWorkshop = async (req, res) => {
         });
 
         if(existingUser) {
-          return res.status(400).json({
+          return res.status(409).json({
             succes: false,
             message: "A user with this email/contact already exists"
           })
