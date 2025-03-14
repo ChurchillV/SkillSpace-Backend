@@ -98,6 +98,7 @@ module.exports.createWorkshop = async(req, res) => {
     }
 };
 
+// For organizers fetching their own workshop
 module.exports.getWorkshopById = async(req, res) => {
     try {
         const { workshopId } = req.params;
@@ -105,15 +106,6 @@ module.exports.getWorkshopById = async(req, res) => {
         const workshop = await prisma.workshop.findUnique({
           where: { id: workshopId },
           include: {
-            organizer: {
-                select: {
-                    id: true,
-                    name: true,
-                    photo: true,
-                    contact: true,
-                    email: true
-                }
-            },
             recurrenceDetails: true, // Fetch recurrence details
             registrants: true, // Fetch all registrations
           },
@@ -135,8 +127,57 @@ module.exports.getWorkshopById = async(req, res) => {
             numberOfRegistrations });
       } catch (error) {
         console.error("Error fetching workshop:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ 
+          success: false,
+          message: "Internal server error"
+        });
       }
+}
+
+module.exports.getWorkshopByIdForUser = async (req, res) => {
+  try {
+    const { workshopId } = req.params;
+
+    const workshop = await prisma.workshop.findUnique({
+      where: { id: workshopId },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            name: true,
+            photo: true,
+            contact: true,
+            email: true
+          }
+        },
+        recurrenceDetails: true,
+        _count: {
+          select: { registrants: true }
+        }
+      }
+    });
+
+    // console.log("Workshop: ", workshop);
+
+    if (!workshop) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Workshop not found" 
+    });
+    }
+
+    res.status(200).json({
+      succes: true,
+      workshop
+    });
+
+  } catch (error) {
+    console.error("Error fetching workshop:", error);
+        res.status(500).json({ 
+          success: false,
+          message: "Internal server error"
+        });
+  }
 }
 
 module.exports.registerForWorkshop = async (req, res) => {
@@ -255,6 +296,52 @@ module.exports.getWorkshopRegistrants = async (req, res) => {
         });
     }
   };
+
+  module.exports.getOrganizerWorkshops = async(req, res) => {
+    try {
+      const { organizerId } = req.params;
+
+      const workshops = await prisma.workshop.findMany({
+        where: { organizerId },
+        select: {
+          id: true,
+          name: true,
+          summary: true,
+          description: true,
+          photo: true,
+          date: true,
+          venue: true,
+          isRecurring: true,
+          isVirtual: true,
+          registrants: true,
+          _count: {
+            select: { registrants: true }
+          }
+        }
+      });
+
+      if(!workshops || workshops.length === 0) {
+        return res.json({
+          succes: true,
+          message: "No workshops found",
+          workshops
+        });
+      };
+
+      res.status(200).json({
+        message: "Workshops retrieved successfully",
+        workshops,
+        succes: true
+      });
+      
+    } catch (error) {
+      console.error("Error fetching workshops:", error);
+      res.status(500).json({ 
+        succes: false,
+        message: "Internal server error" 
+    });
+    }
+  }
   
   module.exports.updateWorkshop = async (req, res) => {
     try {

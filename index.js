@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const userRoutes = require('./Routes/userRoutes');
 const workshopRoutes = require('./Routes/workshopRoutes');
+const authRoutes = require('./Routes/authRoutes');
 
 const app = express();
 
@@ -18,7 +19,8 @@ app.use(
 app.use(cors());
 
 app.use("/api/", userRoutes);
-app.use("/api/workshop/", workshopRoutes);
+app.use("/api/workshops/", workshopRoutes);
+app.use("/api/auth/", authRoutes);
 
 app.listen(3001, () => {
     console.log("SkillSpace is up and running");
