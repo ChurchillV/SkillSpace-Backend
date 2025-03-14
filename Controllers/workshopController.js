@@ -209,7 +209,10 @@ module.exports.registerForWorkshop = async (req, res) => {
         });
   
         if (existingRegistration) {
-          return res.status(400).json({ message: "User already registered for this workshop" });
+          return res.status(400).json({ 
+            success: false,
+            message: "User already registered for this workshop" 
+          });
         }
   
         registration = await prisma.registration.create({
@@ -223,6 +226,18 @@ module.exports.registerForWorkshop = async (req, res) => {
         // Case 2: Guest user (no account)
         if (!firstname || !lastname || !email || !contact) {
           return res.status(400).json({ message: "Guest details are required" });
+        }
+
+        // In case a guest registers with existing credentials
+        const existingUser = await prisma.user.findMany({ 
+          where: { email, contact } 
+        });
+
+        if(existingUser) {
+          return res.status(400).json({
+            succes: false,
+            message: "A user with this email/contact already exists"
+          })
         }
   
         registration = await prisma.registration.create({
@@ -443,4 +458,144 @@ module.exports.getWorkshopRegistrants = async (req, res) => {
         console.error("Error updating workshop:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
+};
+
+module.exports.verifyAttendance = async (req, res) => {
+  try {
+    const { workshopId } = req.params;
+    const { userId, email, contact } = req.body;
+
+    if (!workshopId) {
+      return res.status(400).json({ success: false, message: "Workshop ID is required" });
+    }
+
+    let registration;
+    
+    if (userId) {
+      // Logged-in users: Verify by userId
+      registration = await prisma.registration.findFirst({
+        where: { userId, workshopId },
+      });
+
+      if (!registration) {
+        return res.status(404).json({
+          success: false,
+          message: "No matching registration found. Please register first.",
+        });
+      }
+
+      // Check if already marked as an attendee
+      const existingAttendee = await prisma.attendee.findFirst({
+        where: { userId, workshopId },
+      });
+
+      if (existingAttendee) {
+        return res.status(400).json({ success: false, message: "User is already marked as attended" });
+      }
+
+      // Add as an attendee
+      await prisma.attendee.create({
+        data: { userId, workshopId },
+      });
+
+    } else if (email || contact) {
+      // Guests: Verify by email or contact
+      registration = await prisma.registration.findFirst({
+        where: {
+          workshopId,
+          OR: [
+            { email: email || undefined },
+            { contact: contact || undefined },
+          ],
+        },
+      });
+
+      if (!registration) {
+        return res.status(404).json({
+          success: false,
+          message: "No matching registration found. Please register first.",
+        });
+      }
+
+      // Check if already marked as an attendee
+      const existingAttendee = await prisma.attendee.findFirst({
+        where: { workshopId, OR: [{ email }, { contact }] },
+      });
+
+      if (existingAttendee) {
+        return res.status(400).json({ success: false, message: "Guest is already marked as attended" });
+      }
+
+      // Add as an attendee using email/contact
+      await prisma.attendee.create({
+        data: {
+          workshopId,
+          email: registration.email,
+          contact: registration.contact,
+        },
+      });
+    } else {
+      return res.status(400).json({ success: false, message: "Provide user ID, email, or contact" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Attendance verified successfully",
+    });
+
+  } catch (error) {
+    console.error("Error verifying attendance:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+module.exports.getWorkshopAttendees = async (req, res) => {
+  try {
+    const { workshopId } = req.params;
+
+    if (!workshopId) {
+      return res.status(400).json({ success: false, message: "Workshop ID is required" });
+    }
+
+    // Fetch all attendees for the workshop
+    const attendees = await prisma.attendee.findMany({
+      where: { workshopId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            email: true,
+            contact: true,
+          },
+        },
+      },
+    });
+
+    // Format the response to include both user-based and guest-based attendance records
+    const formattedAttendees = attendees.map((attendanceRecord) => ({
+      id: attendanceRecord.id,
+      firstname: attendanceRecord.user ? attendanceRecord.user.firstname : attendanceRecord.firstname,
+      lastname: attendanceRecord.user ? attendanceRecord.user.lastname : attendanceRecord.lastname,
+      email: attendanceRecord.user ? attendanceRecord.user.email : attendanceRecord.email,
+      contact: attendanceRecord.user ? attendanceRecord.user.contact : attendanceRecord.contact,
+      attendedAs: attendanceRecord.user ? "User" : "Guest",
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Attendees fetched successfully",
+      attendees: formattedAttendees,
+    });
+
+  } catch (error) {
+    console.error("Error fetching attendees:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal server error" });
+  }
 };

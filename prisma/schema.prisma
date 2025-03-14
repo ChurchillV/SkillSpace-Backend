@@ -69,13 +69,15 @@ model Tag {
 }
 
 model Attendee {
-  userId     String
-  workshopId String
-  user       User     @relation(fields: [userId], references: [id])
-  workshop   Workshop @relation(fields: [workshopId], references: [id])
-  
-  @@id([userId, workshopId]) // ✅ Composite primary key for efficiency
+  id          String   @id @default(uuid())
+  userId      String?  @unique // Nullable for guests
+  workshopId  String
+  email       String?  // Guests will use this
+  contact     String?  // Alternative for guests
+  user        User?    @relation(fields: [userId], references: [id])
+  workshop    Workshop @relation(fields: [workshopId], references: [id])
 }
+
 
 model RecurrenceDetail {
   id         String   @id @default(uuid())
