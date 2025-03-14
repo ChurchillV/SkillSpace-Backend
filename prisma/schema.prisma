@@ -95,8 +95,14 @@ model Review {
 
 model Registration {
   id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  userId     String?  // Nullable, required for only registered users
+  user       User?     @relation(fields: [userId], references: [id])
   workshopId String
   workshop   Workshop @relation(fields: [workshopId], references: [id])
+
+  // Fields for guests (optional if the userId exists)
+  firstname  String?
+  lastname   String?
+  email      String?
+  contact    String?
 }
