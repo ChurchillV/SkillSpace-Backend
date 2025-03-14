@@ -98,6 +98,50 @@ module.exports.createWorkshop = async(req, res) => {
     }
 };
 
+module.exports.getAllWorkshops = async (req, res) => {
+  try {
+    const workshops = await prisma.workshop.findMany({
+      include: {
+        organizer: {
+          select: { id: true, name: true, email: true, contact: true }, // Organizer details
+        },
+        registrants: true, // Fetch registrants
+        attendees: true, // Fetch attendees
+      },
+    });
+
+    // Format the response to include counts
+    const formattedWorkshops = workshops.map((workshop) => ({
+      id: workshop.id,
+      name: workshop.name,
+      summary: workshop.summary,
+      description: workshop.description,
+      photo: workshop.photo,
+      date: workshop.date,
+      venue: workshop.venue,
+      isRecurring: workshop.isRecurring,
+      isVirtual: workshop.isVirtual,
+      // meetingLink: workshop.meetingLink,
+      // chatLink: workshop.chatLink,  <-- Not needed right now
+      organizer: workshop.organizer,
+      registrantCount: workshop.registrants.length,
+      attendeeCount: workshop.attendees.length,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Workshops retrieved successfully",
+      workshops: formattedWorkshops,
+    });
+  } catch (error) {
+    console.error("Error fetching workshops:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 // For organizers fetching their own workshop
 module.exports.getWorkshopById = async(req, res) => {
     try {
@@ -530,6 +574,9 @@ module.exports.verifyAttendance = async (req, res) => {
       await prisma.attendee.create({
         data: {
           workshopId,
+          firstname: registration.firstname,
+          lastname: registration.lastname,
+          othernames: registration.othernames,
           email: registration.email,
           contact: registration.contact,
         },
@@ -556,11 +603,7 @@ module.exports.getWorkshopAttendees = async (req, res) => {
   try {
     const { workshopId } = req.params;
 
-    if (!workshopId) {
-      return res.status(400).json({ success: false, message: "Workshop ID is required" });
-    }
-
-    // Fetch all attendees for the workshop
+    // Fetch all attendees for the given workshop
     const attendees = await prisma.attendee.findMany({
       where: { workshopId },
       include: {
@@ -569,33 +612,69 @@ module.exports.getWorkshopAttendees = async (req, res) => {
             id: true,
             firstname: true,
             lastname: true,
+            othernames: true,
             email: true,
             contact: true,
           },
         },
+        workshop: {
+          select: { name: true },
+        },
       },
     });
 
-    // Format the response to include both user-based and guest-based attendance records
-    const formattedAttendees = attendees.map((attendanceRecord) => ({
-      id: attendanceRecord.id,
-      firstname: attendanceRecord.user ? attendanceRecord.user.firstname : attendanceRecord.firstname,
-      lastname: attendanceRecord.user ? attendanceRecord.user.lastname : attendanceRecord.lastname,
-      email: attendanceRecord.user ? attendanceRecord.user.email : attendanceRecord.email,
-      contact: attendanceRecord.user ? attendanceRecord.user.contact : attendanceRecord.contact,
-      attendedAs: attendanceRecord.user ? "User" : "Guest",
-    }));
+    // Fetch all guest registrations for the workshop
+    const guestRegistrations = await prisma.registration.findMany({
+      where: { workshopId, userId: null }, // Guests have null userId
+      select: {
+        firstname: true,
+        lastname: true,
+        othernames: true,
+        email: true,
+        contact: true,
+      },
+    });
+
+    // Map attendees and include guest details where userId is null
+    const formattedAttendees = attendees.map((attendee) => {
+      if (attendee.user) {
+        // Registered user
+        return {
+          id: attendee.user.id,
+          firstname: attendee.user.firstname,
+          lastname: attendee.user.lastname,
+          othernames: attendee.user.othernames,
+          email: attendee.user.email,
+          contact: attendee.user.contact,
+          type: "Registered User",
+        };
+      } else {
+        // Find guest registration details
+        const guest = guestRegistrations.find(
+          (reg) => reg.email === attendee.email || reg.contact === attendee.contact
+        );
+
+        return {
+          firstname: guest?.firstname || "Guest",
+          lastname: guest?.lastname || "",
+          othernames: guest?.othernames || "",
+          email: guest?.email || "N/A",
+          contact: guest?.contact || "N/A",
+          type: "Guest",
+        };
+      }
+    });
 
     res.status(200).json({
       success: true,
-      message: "Attendees fetched successfully",
+      message: `Attendees retrieved for workshop: ${attendees[0]?.workshop?.name || "Unknown Workshop"}`,
       attendees: formattedAttendees,
     });
-
   } catch (error) {
     console.error("Error fetching attendees:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal server error" });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

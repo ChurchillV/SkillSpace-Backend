@@ -6,7 +6,8 @@ const { createWorkshop,
         getOrganizerWorkshops, 
         getWorkshopByIdForUser, 
         verifyAttendance, 
-        getWorkshopAttendees 
+        getWorkshopAttendees, 
+        getAllWorkshops
     } = require('../Controllers/workshopController');
 const { validateWorkshop } = require('../Middleware/validators');
 
@@ -16,11 +17,12 @@ router.post("/", validateWorkshop, createWorkshop);
 router.post("/:workshopId/register", registerForWorkshop);
 router.post("/:workshopId/verify-attendance", verifyAttendance)
 
+router.get("/", getAllWorkshops);
 router.get("/:workshopId", getWorkshopById);
 router.get("/:workshopId/user", getWorkshopByIdForUser);
 router.get("/:organizerId", getOrganizerWorkshops);
 router.get("/:workshopId/registrants", getWorkshopRegistrants);
-router.get("/:workshopId/attendees", getWorkshopAttendees)
+router.get("/:workshopId/attendees", getWorkshopAttendees);
 
 router.patch("/:workshopId", updateWorkshop);
 
