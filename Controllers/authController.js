@@ -5,10 +5,49 @@ const { generateToken } = require('../Utils/generateToken');
 const prisma = new PrismaClient();
 
 module.exports.userLogin = async(req, res) => {
+    const {emailOrContact, password} = req.body;
     try {
-        
+        // Check for actual existing account
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                OR: [{ email: emailOrContact }, { contact: emailOrContact }]
+            }
+        });
+
+        if(!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: "No user with that email/contact was found. Please try again"
+            })
+        };
+
+        // console.log("Existing user:", existingUser);
+
+        const isPasswordValid = await bcrypt.compare(password, existingUser.password);
+
+        if(!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid Password"
+            });
+        };
+
+        const accessToken = generateToken(existingUser.id);
+
+        return res.send({
+            success: true,
+            message: "Logged in successfully",
+            profile: existingUser,
+            accessToken
+        })
+
+
     } catch (error) {
-        
+        console.error("Error logging in user", error);
+        res.status(500).send({
+            message: "Internal server error",
+            success: false
+        })
     }
 }
 
@@ -52,7 +91,7 @@ module.exports.organizerLogin = async(req, res) => {
 
 
     } catch (error) {
-        console.error("Error Logging in organizer", error);
+        console.error("Error logging in organizer", error);
         res.status(500).send({
             message: "Internal server error",
             success: false
