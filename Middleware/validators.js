@@ -36,3 +36,11 @@ module.exports.validateOrganizer = [
     .notEmpty().withMessage('Password is required')
     .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
 ]
+
+module.exports.validateWorkshop = [
+  body('name').notEmpty().withMessage('Workshop Name is required'),
+  body('date').notEmpty().withMessage('Workshop start date is required'),
+  body('venue').notEmpty().withMessage('Workshop Venue is rerquired'),
+  body('chatLink').notEmpty().withMessage('Workshop Group Link is required'),
+  body('organizerId').notEmpty().withMessage('Organizer ID is required')
+]
