@@ -105,6 +105,15 @@ module.exports.getWorkshopById = async(req, res) => {
         const workshop = await prisma.workshop.findUnique({
           where: { id: workshopId },
           include: {
+            organizer: {
+                select: {
+                    id: true,
+                    name: true,
+                    photo: true,
+                    contact: true,
+                    email: true
+                }
+            },
             recurrenceDetails: true, // Fetch recurrence details
             registrants: true, // Fetch all registrations
           },
