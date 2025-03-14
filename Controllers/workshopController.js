@@ -247,3 +247,104 @@ module.exports.getWorkshopRegistrants = async (req, res) => {
     }
   };
   
+  module.exports.updateWorkshop = async (req, res) => {
+    try {
+        const { workshopId } = req.params;
+        const {
+            name,
+            summary,
+            description,
+            photo,
+            date,
+            venue,
+            isRecurring,
+            isVirtual,
+            meetingLink,
+            chatLink,
+            organizerId,
+            recurrenceDetails,
+            tags, // Array of tag names or IDs
+        } = req.body;
+
+        // 🔹 Check if the workshop exists
+        const existingWorkshop = await prisma.workshop.findUnique({
+            where: { id: workshopId },
+            include: { recurrenceDetails: true },
+        });
+
+        if (!existingWorkshop) {
+            return res.status(404).json({ error: "Workshop not found" });
+        }
+
+        // 🔹 Ensure the organizer updating it is the one who created it
+        if (existingWorkshop.organizerId !== organizerId) {
+            return res.status(403).json({ error: "Unauthorized: You can only update your own workshops" });
+        }
+
+        // 🔹 Ensure organizer exists
+        const existingOrganizer = await prisma.organizer.findUnique({
+            where: { id: organizerId }
+        });
+
+        if (!existingOrganizer) {
+            return res.status(404).json({ error: "Organizer not found" });
+        }
+
+        // 🔹 Handle tags efficiently
+        let tagRecords = [];
+        if (tags && Array.isArray(tags)) {
+            tagRecords = await Promise.all(
+                tags.map(async (tagName) => {
+                    let tag = await prisma.tag.findUnique({ where: { name: tagName } });
+                    if (!tag) {
+                        tag = await prisma.tag.create({ data: { name: tagName } });
+                    }
+                    return { id: tag.id };
+                })
+            );
+        }
+
+        // 🔹 Prepare the update data
+        const updateData = {
+            name,
+            summary,
+            description,
+            photo,
+            date,
+            venue,
+            isRecurring,
+            isVirtual,
+            meetingLink,
+            chatLink,
+            ...(tags && { tags: { set: tagRecords } }), // Directly set new tags
+        };
+
+        // 🔹 Update workshop details
+        const updatedWorkshop = await prisma.workshop.update({
+            where: { id: workshopId },
+            data: updateData,
+            include: { tags: true }, // Ensure updated tags are returned
+        });
+
+        // 🔹 Handle recurrence details if provided
+        if (recurrenceDetails && Array.isArray(recurrenceDetails)) {
+            await prisma.recurrenceDetail.deleteMany({ where: { workshopId } });
+
+            const newRecurrences = recurrenceDetails.map((detail) => ({
+                date: new Date(detail.date),
+                time: detail.time,
+                workshopId,
+            }));
+
+            await prisma.recurrenceDetail.createMany({ data: newRecurrences });
+        }
+
+        return res.json({
+            message: "Workshop updated successfully",
+            workshop: updatedWorkshop,
+        });
+    } catch (error) {
+        console.error("Error updating workshop:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
