@@ -5,13 +5,11 @@ const { generateToken } = require('../Utils/generateToken');
 const prisma = new PrismaClient();
 
 module.exports.userLogin = async(req, res) => {
-    const {emailOrContact, password} = req.body;
+    const {email, password} = req.body;
     try {
         // Check for actual existing account
-        const existingUser = await prisma.user.findFirst({
-            where: {
-                OR: [{ email: emailOrContact }, { contact: emailOrContact }]
-            }
+        const existingUser = await prisma.user.findUnique({
+            where: { email: email }
         });
 
         if(!existingUser) {
@@ -52,14 +50,12 @@ module.exports.userLogin = async(req, res) => {
 }
 
 module.exports.organizerLogin = async(req, res) => {
-    const { emailOrContact, password} = req.body;
+    const { email, password} = req.body;
 
     try {
         // Check for actual existing account
         const existingOrganizer = await prisma.organizer.findFirst({
-            where: {
-                OR: [{ email: emailOrContact }, { contact: emailOrContact }]
-            }
+            where: { email: email }
         });
 
         if(!existingOrganizer) {
