@@ -22,6 +22,6 @@ app.use("/api/", userRoutes);
 app.use("/api/workshops/", workshopRoutes);
 app.use("/api/auth/", authRoutes);
 
-app.listen(3001, () => {
-    console.log("SkillSpace is up and running");
+app.listen(process.env.PORT, () => {
+    console.log(`SkillSpace is up and running on port ${process.env.PORT}`);
 })
