@@ -52,10 +52,16 @@ module.exports.createUser = async(req, res) => {
 
     } catch (error) {
         if (error.code === 'P2002') {
-            return res.status(409).json({ message: 'Email or contact already exists' });
+            return res.status(409).json({ 
+                success: false,
+                message: 'Email or contact already exists' 
+            });
           }
           console.error(error);
-          res.status(500).json({ message: 'Internal server error' });
+          res.status(500).json({ 
+            success: false,
+            message: 'Internal server error' 
+        });
     }
 }
 
