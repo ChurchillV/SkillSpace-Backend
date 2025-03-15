@@ -45,6 +45,7 @@ module.exports.createUser = async(req, res) => {
         });
 
         res.status(201).json({
+            success: true,
             message: "Account Created Successfully",
             user
         });
@@ -110,6 +111,7 @@ module.exports.createOrganizer = async(req, res) => {
         });
 
         res.status(201).json({
+            success: true,
             message: "Account created successfully",
             organizer
         });
