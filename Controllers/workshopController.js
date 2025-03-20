@@ -211,7 +211,7 @@ module.exports.getWorkshopByIdForUser = async (req, res) => {
     }
 
     res.status(200).json({
-      succes: true,
+      success: true,
       workshop
     });
 
@@ -223,6 +223,7 @@ module.exports.getWorkshopByIdForUser = async (req, res) => {
         });
   }
 }
+
 
 module.exports.registerForWorkshop = async (req, res) => {
     try {
@@ -356,7 +357,7 @@ module.exports.getWorkshopRegistrants = async (req, res) => {
     }
   };
 
-  module.exports.getOrganizerWorkshops = async(req, res) => {
+  module.exports.getWorkshopsByOrganizerId = async(req, res) => {
     try {
       const { organizerId } = req.params;
 
