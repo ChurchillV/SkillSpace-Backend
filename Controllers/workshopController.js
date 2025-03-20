@@ -29,6 +29,8 @@ module.exports.createWorkshop = async(req, res) => {
         recurrenceDetails, // Array of recurring dates and times
     } = req.body;
 
+    console.log("Request: ", req.body);
+
     try {
         // Ensure the organizer exists
         const organizerExists = await prisma.organizer.findUnique({
@@ -38,17 +40,20 @@ module.exports.createWorkshop = async(req, res) => {
         if (!organizerExists) {
             return res.status(400).json({ message: "Organizer does not exist" });
         }
-    
-        // Ensure the tags exist, or create them
-        const tagRecords = await Promise.all(
-            tags.map(async (tagId) => {
-            const tag = await prisma.tag.findUnique({ where: { id: tagId } });
-            if (!tag) {
-                return await prisma.tag.create({ data: { id: tagId, name: tagId } });
+        
+        const allTags = await Promise.all(
+          tags.map(async (tag) => {
+            let existingTag = await prisma.tag.findUnique({ where: { name: tag } });
+        
+            if (!existingTag) {
+              existingTag = await prisma.tag.create({ data: { name: tag } });
             }
-            return tag;
-            })
+        
+            return existingTag;
+          })
         );
+        
+        console.log("All tags: ", allTags);
 
         const workshop = await prisma.workshop.create({
             data: {
@@ -64,7 +69,7 @@ module.exports.createWorkshop = async(req, res) => {
                 chatLink,
                 organizer: { connect: { id: organizerId } },
                 tags: {
-                  connect: tags?.map((tagId) => ({ id: tagId })) || [],
+                  connect: allTags?.map((tag) => ({ name: tag.name })) || [],
                 },
             }
         });
